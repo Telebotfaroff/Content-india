@@ -7,7 +7,7 @@ from pathlib import Path
 from core.models import DownloadJob, JobStatus
 from core.queue import InMemoryJobQueue
 from downloader.engine import DownloadEngine
-from media.processor import prepare
+from media.processor import prepare, format_bytes
 from uploader.wzgram import WzgramUploader
 from extractor.fetch import resolve_post_stream
 
