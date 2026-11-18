@@ -162,7 +162,15 @@ async def scrape_html(url: str) -> dict:
             add_candidate(m.group(0))
 
         # Enrich at most 10 direct links with HEAD sizes, in parallel.
-        await asyncio.gather(*[
-            _head_size(session, link.directUrl, url) for link in links[:10] if link.filesize <= 0 and link.ext != "m3u8"
-        ], return_exceptions=True)
+        pending_sizes = [
+            (link, _head_size(session, link.directUrl, url))
+            for link in links[:10] if link.filesize <= 0 and link.ext != "m3u8"
+        ]
+        size_results = await asyncio.gather(
+            *(task for _, task in pending_sizes), return_exceptions=True
+        )
+        for (link, _), size in zip(pending_sizes, size_results):
+            if isinstance(size, int) and size > 0:
+                link.filesize = size
+                link.filesizeFormatted = f"{size / (1024 * 1024):.2f} MB"
         return {"title": title, "thumbnail": thumbnail, "links": links, "discoveredPosts": list(posts.values())}
