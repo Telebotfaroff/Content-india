@@ -78,6 +78,10 @@ async def main():
             try:
                 if message_id:
                     await client.edit_message_text(chat_id, int(message_id), content)
+                    if is_batch:
+                        batch_notification_ids[job.batch_id] = int(message_id)
+                        for item in jobs:
+                            item.metadata["telegram_message_id"] = int(message_id)
                 else:
                     sent = await client.send_message(chat_id, content)
                     message_id = sent.id
