@@ -25,12 +25,8 @@ class BotHandlers:
         self.channel_sessions = {}
         self.target_channel_path = settings.session_dir / "target_channel.txt"
         self.target_channel = settings.target_channel
-        try:
-            saved_channel = self.target_channel_path.read_text(encoding="utf-8").strip()
-            if saved_channel:
-                self.target_channel = saved_channel
-        except FileNotFoundError:
-            pass
+        if self.target_channel_path.exists():
+            self.target_channel = self.target_channel_path.read_text(encoding="utf-8").strip()
 
     def _is_owner(self, user) -> bool:
         return bool(self.settings.admin_id) and getattr(user, "id", None) == self.settings.admin_id
@@ -351,10 +347,8 @@ class BotHandlers:
                     await query.answer("Waiting for channel")
                 else:
                     self.target_channel = ""
-                    try:
-                        self.target_channel_path.unlink(missing_ok=True)
-                    except OSError:
-                        pass
+                    self.target_channel_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.target_channel_path.write_text("", encoding="utf-8")
                     await query.message.edit_text(
                         "🗑 Upload channel removed. New jobs will upload to the chat only.",
                         reply_markup=self._channel_keyboard(),
