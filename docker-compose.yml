@@ -1,0 +1,11 @@
+services:
+  velofetch:
+    build: .
+    container_name: velofetch
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./downloads:/app/downloads
+      - ./temp:/app/temp
+      - ./sessions:/app/sessions
