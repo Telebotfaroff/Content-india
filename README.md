@@ -16,10 +16,11 @@ Python-only Telegram video downloader and uploader.
 - `/start`, `/help` — help
 - `/ytdlp <url>` — direct URL download with quality selection
 - `/fetch <url>` — scan a page for discovered posts and direct streams
+- `/autofetch` — learn a site's pagination from page 1 and page 2 URLs, scan a chosen number of pages, deduplicate posts and queue them as one batch (default quality: 1080p)
 - `/queue` — show current in-memory jobs
 - `/cancel <job_id>` — cancel a job
 
-Reply to a message containing a URL with `/ytdlp` or `/fetch` to use its URL.
+Reply to a message containing a URL with `/ytdlp` or `/fetch` to use its URL. `/autofetch` is a separate guided flow: send the base URL, the page-2 URL, then the total page count (2–200). Use `/cancel` during setup to stop it.
 
 ## Fetch behaviour being preserved
 
