@@ -73,9 +73,18 @@ class WorkerManager:
                 async def progress(current,total):
                     if total: await self.notify(job,f"⬆️ {current/total*100:.1f}% · {format_bytes(current)}/{format_bytes(total)}")
                 chat_destination = job.destination or job.metadata.get("telegram_chat_id")
-                await self.uploader.upload(chat_destination,job.file_path,caption,thumb,progress)
+                sent_message = await self.uploader.upload(
+                    chat_destination, job.file_path, caption, thumb, job.metadata, progress
+                )
                 if job.metadata.get("dest_mode") == "both" and job.metadata.get("target_channel"):
-                    await self.uploader.upload(job.metadata["target_channel"],job.file_path,caption,thumb,progress)
+                    try:
+                        await self.uploader.copy_to(sent_message, job.metadata["target_channel"])
+                    except Exception:
+                        # Fallback to a second MTProto upload if server-side copy is unavailable.
+                        await self.uploader.upload(
+                            job.metadata["target_channel"], job.file_path, caption, thumb,
+                            job.metadata, progress
+                        )
                 job.status=JobStatus.COMPLETED
                 await self.notify(job,"✅ Upload completed")
                 try: job.file_path.unlink(missing_ok=True)
