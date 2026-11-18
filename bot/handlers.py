@@ -51,7 +51,7 @@ class BotHandlers:
                 "/fetch <url> — scan a page for posts and direct streams\n"
                 "/autofetch — learn pagination and queue posts from multiple pages\n"
                 "/queue — show in-memory jobs\n"
-                "/cancel <job_id> — cancel a job\n\n"
+                "/cancel [job_id] — cancel AutoFetch setup or a job\n\n"
                 "You can also reply to a message containing a URL with /ytdlp or /fetch."
             )
 
@@ -115,7 +115,7 @@ class BotHandlers:
                 "Send /cancel to stop."
             )
 
-        @self.client.on_message(filters.text)
+        @self.client.on_message(filters.text, group=1)
         async def autofetch_input(_, message):
             text = (message.text or "").strip()
             if text.startswith("/"):
