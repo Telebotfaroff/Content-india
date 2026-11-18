@@ -4,16 +4,16 @@ from wzgram.types import InlineKeyboardMarkup, InlineKeyboardButton
 QUALITIES=["best","2160p","1440p","1080p","720p","480p","360p"]
 LABELS={"best":"Best","2160p":"4K","1440p":"2K","1080p":"1080p","720p":"720p","480p":"480p","360p":"360p"}
 
-def quality_keyboard(key: str, has_channel: bool=False):
+def quality_keyboard(key: str, has_channel: bool=False, dest_mode: str="both"):
     rows=[
         [InlineKeyboardButton(LABELS[q],callback_data=f"qual|{key}|{q}") for q in QUALITIES[:4]],
         [InlineKeyboardButton(LABELS[q],callback_data=f"qual|{key}|{q}") for q in QUALITIES[4:]],
     ]
     if has_channel:
         rows.append([
-            InlineKeyboardButton(("✅ " if False else "")+"💬 Chat Only",callback_data=f"dest|{key}|chat"),
-            InlineKeyboardButton("📢 Channel Only",callback_data=f"dest|{key}|channel"),
-            InlineKeyboardButton("💬+📢 Chat + Channel",callback_data=f"dest|{key}|both"),
+            InlineKeyboardButton(("✅ " if dest_mode=="chat" else "")+"💬 Chat Only",callback_data=f"dest|{key}|chat"),
+            InlineKeyboardButton(("✅ " if dest_mode=="channel" else "")+"📢 Channel Only",callback_data=f"dest|{key}|channel"),
+            InlineKeyboardButton(("✅ " if dest_mode=="both" else "")+"💬+📢 Chat + Channel",callback_data=f"dest|{key}|both"),
         ])
     return InlineKeyboardMarkup(rows)
 
