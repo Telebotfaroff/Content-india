@@ -24,6 +24,7 @@ def _ids(name: str) -> tuple[int, ...]:
 @dataclass(frozen=True, slots=True)
 class Settings:
     bot_token: str
+    target_channel: str
     api_id: int
     api_hash: str
     owner_ids: tuple[int, ...]
@@ -52,6 +53,7 @@ def load_settings() -> Settings:
 
     settings = Settings(
         bot_token=token,
+        target_channel=os.getenv("TARGET_CHANNEL", "").strip(),
         api_id=int(api_id),
         api_hash=api_hash,
         owner_ids=_ids("OWNER_IDS"),
