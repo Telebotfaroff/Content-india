@@ -42,6 +42,10 @@ WZGram authenticates using the bot token together with API ID and API hash. Vide
 
 Set `TARGET_CHANNEL` to enable the Chat + Channel / Chat Only destination choice. The bot must have permission to post in the target channel.
 
+## Telegram notifications
+
+Each download uses one editable live status message from start to finish—download, processing, upload and completion. Batch jobs share one dashboard-style message showing total completion, the active download and active Telegram upload with separate progress bars. Updates are throttled to avoid flooding Telegram, and the bot edits the existing message instead of sending a new message for every stage.
+
 ## Google Colab
 
 Open [VeloFetch_Colab.ipynb](VeloFetch_Colab.ipynb) in Google Colab and run the cells from top to bottom. The notebook clones the repository, installs FFmpeg/aria2 and Python requirements, prompts for `BOT_TOKEN`, `API_ID`, and `API_HASH`, then starts the bot with live logs. `TARGET_CHANNEL` is optional.
