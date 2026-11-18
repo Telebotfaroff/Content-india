@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from config import load_settings
 from core.queue import InMemoryJobQueue
@@ -18,8 +19,6 @@ async def main():
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
 
-    # This mirrors the original bridge: WZGram Client authenticates with
-    # API_ID + API_HASH + BOT_TOKEN and handles both updates and MTProto media.
     from wzgram import Client
 
     client = Client(
@@ -37,12 +36,19 @@ async def main():
 
     queue = InMemoryJobQueue(settings.max_pending_uploads)
     downloader = DownloadEngine(settings)
+    last_notification_edit = {}
 
     async def notify(job, text):
         chat_id = job.metadata.get("telegram_chat_id") or job.destination
         message_id = job.metadata.get("telegram_message_id")
         if not chat_id:
             return
+        now = time.monotonic()
+        key = job.id
+        terminal = str(job.status) in ("completed", "failed", "cancelled")
+        if not terminal and now - last_notification_edit.get(key, 0) < settings.progress_update_interval:
+            return
+        last_notification_edit[key] = now
         try:
             content = f"**{job.id}** · {job.status}\n{text}"
             if message_id:
