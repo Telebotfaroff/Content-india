@@ -10,7 +10,7 @@ from bot.keyboards import quality_keyboard, fetch_keyboard, batch_quality_keyboa
 from core.models import DownloadJob
 from extractor.fetch import fetch_direct_links
 
-URL_RE = re.compile(r"https?://[^\\s<>]+", re.I)
+URL_RE = re.compile(r"https?://[^\s<>]+", re.I)
 
 
 class BotHandlers:
