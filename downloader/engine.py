@@ -46,7 +46,7 @@ class DownloadEngine:
                 self.processes[job_id]=proc
                 async for raw in proc.stdout:
                     line=raw.decode(errors="replace")
-                    m=re.search(r"\\[#[0-9a-f]+\\s+([^\\s/]+)/([^\\s(]+)\\((\\d+)%\\).*?DL:([^\\s\\]]+)(?:\\s+ETA:([^\\]]+))?",line,re.I)
+                    m=re.search(r"\[#[0-9a-f]+\s+([^\s/]+)/([^\s(]+)\((\d+)%\).*?DL:([^\s\]]+)(?:\s+ETA:([^\]]+))?",line,re.I)
                     if m and progress: await progress(float(m.group(3)),m.group(4),m.group(5) or "")
                 code=await proc.wait()
                 self.processes.pop(job_id,None)
