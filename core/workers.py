@@ -126,20 +126,29 @@ class WorkerManager:
                             f"{format_bytes(current)}/{format_bytes(total)}",
                         )
 
+                dest_mode = job.metadata.get("dest_mode", "chat")
                 chat_destination = job.destination or job.metadata.get("telegram_chat_id")
-                sent_message = await self.uploader.upload(
-                    chat_destination, job.file_path, caption, thumb, job.metadata, progress
-                )
+                channel_destination = job.metadata.get("target_channel")
 
-                if job.metadata.get("dest_mode") == "both" and job.metadata.get("target_channel"):
-                    try:
-                        await self.uploader.copy_to(sent_message, job.metadata["target_channel"])
-                    except Exception:
-                        # Fallback to a second MTProto upload if server-side copy is unavailable.
-                        await self.uploader.upload(
-                            job.metadata["target_channel"], job.file_path, caption,
-                            thumb, job.metadata, progress
-                        )
+                if dest_mode == "channel":
+                    if not channel_destination:
+                        raise RuntimeError("Channel Only was selected, but no upload channel is configured.")
+                    await self.uploader.upload(
+                        channel_destination, job.file_path, caption, thumb, job.metadata, progress
+                    )
+                else:
+                    sent_message = await self.uploader.upload(
+                        chat_destination, job.file_path, caption, thumb, job.metadata, progress
+                    )
+                    if dest_mode == "both" and channel_destination:
+                        try:
+                            await self.uploader.copy_to(sent_message, channel_destination)
+                        except Exception:
+                            # Fallback to a second MTProto upload if server-side copy is unavailable.
+                            await self.uploader.upload(
+                                channel_destination, job.file_path, caption,
+                                thumb, job.metadata, progress
+                            )
 
                 job.status = JobStatus.COMPLETED
                 await self.notify(job, "✅ Upload completed")
