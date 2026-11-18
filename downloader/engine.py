@@ -50,7 +50,10 @@ class DownloadEngine:
             code=await proc.wait(); self.processes.pop(job_id,None)
             if code==0 and final.exists() and final.stat().st_size: return final
             raise RuntimeError(f"aria2c failed (exit {code})")
-        args=["yt-dlp","--no-warnings","--no-check-certificates","--socket-timeout","20","--retries","3","--fragment-retries","3","--concurrent-fragments",str(self.settings.aria2c_connections),"--downloader-args",f"aria2c:-x{self.settings.aria2c_connections} -s{self.settings.aria2c_split} -k1M","--format",quality_selector(quality),"--merge-output-format","mp4","--newline","--progress","--output",str(output),url]
+        args=["yt-dlp","--no-warnings","--no-check-certificates","--socket-timeout","20","--retries","3","--fragment-retries","3","--concurrent-fragments",str(self.settings.aria2c_connections)]
+        if shutil.which("aria2c"):
+            args.extend(["--downloader-args",f"aria2c:-x{self.settings.aria2c_connections} -s{self.settings.aria2c_split} -k1M"])
+        args.extend(["--format",quality_selector(quality),"--merge-output-format","mp4","--newline","--progress","--output",str(output),url])
         proc=await asyncio.create_subprocess_exec(*args,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
         self.processes[job_id]=proc
         async for raw in proc.stdout:
