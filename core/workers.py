@@ -71,7 +71,9 @@ class WorkerManager:
                 caption=f"🎬 {job.title or job.metadata.get('title') or job.file_path.stem}\n📺 {job.metadata.get('height',0)}p · ⏱ {duration} · 📦 {size}"
                 await self.notify(job,"⬆️ Upload started")
                 async def progress(current,total):
-                    if total: await self.notify(job,f"⬆️ {current/total*100:.1f}% · {format_bytes(current)}/{format_bytes(total)}")
+                    if total:
+                        job.progress = current / total * 100
+                        await self.notify(job,f"⬆️ {job.progress:.1f}% · {format_bytes(current)}/{format_bytes(total)}")
                 chat_destination = job.destination or job.metadata.get("telegram_chat_id")
                 sent_message = await self.uploader.upload(
                     chat_destination, job.file_path, caption, thumb, job.metadata, progress
