@@ -35,7 +35,7 @@ Reply to a message containing a URL with `/ytdlp` or `/fetch` to use its URL. `/
 
 ## Download/upload pipeline
 
-Batch downloads run one video at a time by default. As soon as a video finishes downloading and processing, it is handed to the upload worker; the next video downloads while the previous one uploads. The pipeline is bounded to the active upload plus one next file, so a large batch does not fill Colab's local disk before uploads begin. Successful files and thumbnails are removed after upload. Increase `DOWNLOAD_WORKERS` only if you intentionally want parallel downloads and have enough storage.
+Batch downloads run one video at a time by default. As soon as a video finishes downloading and processing, it is handed to the upload worker; the next video downloads while the previous one uploads. The pipeline is bounded to the active upload plus one next file, so a large batch does not fill Colab's local disk before uploads begin. After every selected Telegram destination confirms the upload, VeloFetch automatically removes the video, thumbnail, and job-specific temporary/partial files (including downloader sidecars) from its managed download/temp folders. Failed uploads keep their files for retry or inspection. Increase `DOWNLOAD_WORKERS` only if you intentionally want parallel downloads and have enough storage.
 
 ## Upload behaviour
 
