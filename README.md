@@ -24,12 +24,15 @@ Python-only Telegram video downloader and uploader.
 
 The queue and pending `/fetch` selections live in memory. Restarting the process clears pending jobs and extraction sessions. Downloaded files already written to disk remain on disk.
 
-## Setup
+## Current development status
 
-1. Install Python 3.11 or newer.
-2. Install system packages: `ffmpeg` and `aria2`.
-3. Install Python dependencies: `pip install -r requirements.txt`.
+The initial Python scaffold and volatile queue are committed. The original `/ytdlp` and `/fetch` handlers, extractor, downloader pipeline, media processor and verified WZGram client adapter are still being ported. `main.py` is currently a bootstrap placeholder and is not yet a running bot.
+
+## Setup prerequisites
+
+1. Python 3.11 or newer.
+2. System packages: `ffmpeg` and `aria2`.
+3. Python dependencies: `pip install -r requirements.txt`.
 4. Copy `.env.example` to `.env` and configure credentials.
-5. Run `python main.py`.
 
-Never commit real Telegram credentials or session files.
+The bot will become runnable after the command handlers and WZGram adapter are connected. Never commit real Telegram credentials or session files.
