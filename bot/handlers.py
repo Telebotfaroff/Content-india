@@ -99,7 +99,7 @@ class BotHandlers:
             }
             prompt = await message.reply_text(
                 f"🎬 Select quality for {url}",
-                reply_markup=quality_keyboard(key, bool(self.target_channel)),
+                reply_markup=quality_keyboard(key, bool(self.target_channel), req["dest_mode"]),
             )
             req["reply_id"] = prompt.id
 
@@ -372,7 +372,7 @@ class BotHandlers:
                     req["dest_mode"] = value
                     await query.answer("Destination updated")
                     await query.message.edit_reply_markup(
-                        reply_markup=quality_keyboard(key, True)
+                        reply_markup=quality_keyboard(key, True, req["dest_mode"])
                     )
                     return
                 job = DownloadJob(
