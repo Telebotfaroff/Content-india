@@ -7,7 +7,7 @@ from pathlib import Path
 from core.models import DownloadJob, JobStatus
 from core.queue import InMemoryJobQueue
 from downloader.engine import DownloadEngine
-from media.processor import prepare, format_bytes
+from media.processor import prepare, format_bytes, cleanup_job_files
 from uploader.wzgram import WzgramUploader
 from extractor.fetch import resolve_post_stream
 
@@ -143,12 +143,10 @@ class WorkerManager:
 
                 job.status = JobStatus.COMPLETED
                 await self.notify(job, "✅ Upload completed")
-                try:
-                    job.file_path.unlink(missing_ok=True)
-                except OSError:
-                    pass
-                if thumb:
-                    thumb.unlink(missing_ok=True)
+                # Only clean local artifacts after every selected Telegram
+                # destination has accepted the video. Failed uploads retain
+                # their files so the job can be retried or inspected.
+                cleanup_job_files(job.id, self.settings, job.file_path, thumb)
 
             except asyncio.CancelledError:
                 raise
