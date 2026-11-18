@@ -9,6 +9,7 @@ from core.queue import InMemoryJobQueue
 from downloader.engine import DownloadEngine
 from media.processor import prepare, format_bytes, format_duration
 from uploader.wzgram import WzgramUploader
+from extractor.fetch import resolve_post_stream
 
 log=logging.getLogger("velofetch.workers")
 
@@ -37,7 +38,14 @@ class WorkerManager:
                 async def progress(percent,speed,eta):
                     job.progress=percent
                     await self.notify(job,f"⬇️ {percent:.1f}% · {speed} · ETA {eta}")
-                job.file_path=await self.downloader.download(job.id,job.url,job.quality,progress)
+                download_url = job.url
+                if job.source == "fetch":
+                    resolved = await resolve_post_stream(job.url, job.quality)
+                    download_url = resolved["downloadUrl"]
+                    job.title = job.title or resolved.get("title")
+                    if resolved.get("thumbnail"):
+                        job.metadata["source_thumbnail_url"] = resolved["thumbnail"]
+                job.file_path=await self.downloader.download(job.id,download_url,job.quality,progress)
                 if job.status==JobStatus.CANCELLED: continue
                 job.status=JobStatus.PROCESSING
                 metadata,thumb=await prepare(job.file_path,self.settings)
