@@ -22,13 +22,31 @@ class BotHandlers:
         self.notify = notify
         self.pending = {}
         self.autofetch_sessions = {}
+        self.channel_sessions = {}
+        self.target_channel_path = settings.session_dir / "target_channel.txt"
+        self.target_channel = settings.target_channel
+        try:
+            saved_channel = self.target_channel_path.read_text(encoding="utf-8").strip()
+            if saved_channel:
+                self.target_channel = saved_channel
+        except FileNotFoundError:
+            pass
+
+    def _is_owner(self, user) -> bool:
+        return bool(self.settings.admin_id) and getattr(user, "id", None) == self.settings.admin_id
+
+    def _channel_keyboard(self):
+        rows = [[InlineKeyboardButton("➕ Add / Change private channel", callback_data="chadd")]]
+        if self.target_channel:
+            rows.append([InlineKeyboardButton("🗑 Remove channel", callback_data="chremove")])
+        return InlineKeyboardMarkup(rows)
 
     def _metadata(self, req: dict) -> dict:
         return {
             "telegram_chat_id": req["chat_id"],
             "telegram_message_id": req.get("reply_id"),
-            "dest_mode": req.get("dest_mode", "both" if self.settings.target_channel else "chat"),
-            "target_channel": self.settings.target_channel,
+            "dest_mode": req.get("dest_mode", "both" if self.target_channel else "chat"),
+            "target_channel": self.target_channel,
         }
 
     async def _queue_post(self, req: dict, post: dict, quality: str, batch_id: str | None = None):
@@ -51,8 +69,22 @@ class BotHandlers:
                 "/fetch <url> — scan a page for posts and direct streams\n"
                 "/autofetch — learn pagination and queue posts from multiple pages\n"
                 "/queue — show in-memory jobs\n"
-                "/cancel [job_id] — cancel AutoFetch setup or a job\n\n"
+                "/channel — manage private upload channel (owner only)\n"
+                "/cancel [job_id] — cancel AutoFetch/channel setup or a job\n\n"
                 "You can also reply to a message containing a URL with /ytdlp or /fetch."
+            )
+
+        @self.client.on_message(filters.command(["channel", "channels"]))
+        async def channel_cmd(_, message):
+            if not self._is_owner(getattr(message, "from_user", None)):
+                await message.reply_text("⛔ This command is owner-only.")
+                return
+            current = f"\\nCurrent channel: `{self.target_channel}`" if self.target_channel else "\\nNo upload channel configured."
+            await message.reply_text(
+                "📡 **Private channel settings**" + current +
+                "\\n\\nAdd the channel ID or forward a post from that channel. "
+                "The bot must be an administrator with permission to post.",
+                reply_markup=self._channel_keyboard(),
             )
 
         @self.client.on_message(filters.command(["ytdlp", "ytdl"]))
@@ -67,11 +99,11 @@ class BotHandlers:
             key = uuid.uuid4().hex[:8]
             req = {
                 "url": url, "chat_id": message.chat.id, "reply_id": message.id,
-                "dest_mode": "both" if self.settings.target_channel else "chat",
+                "dest_mode": "both" if self.target_channel else "chat",
             }
             prompt = await message.reply_text(
                 f"🎬 Select quality for {url}",
-                reply_markup=quality_keyboard(key, bool(self.settings.target_channel)),
+                reply_markup=quality_keyboard(key, bool(self.target_channel)),
             )
             req["reply_id"] = prompt.id
 
@@ -88,7 +120,7 @@ class BotHandlers:
             key = uuid.uuid4().hex[:8]
             req = {
                 "url": url, "chat_id": message.chat.id, "reply_id": status.id,
-                "dest_mode": "both" if self.settings.target_channel else "chat",
+                "dest_mode": "both" if self.target_channel else "chat",
                 "batch_quality": "1080p", "posts_page": 0,
             }
             self.pending[key] = req
@@ -100,7 +132,7 @@ class BotHandlers:
                 await status.edit_text(
                     f"🌐 **{data['title']}**\nPosts: {len(data['discoveredPosts'])} · Streams: {len(data['directLinks'])}",
                     reply_markup=fetch_keyboard(
-                        key, data, 0, mode, bool(self.settings.target_channel), req["dest_mode"]
+                        key, data, 0, mode, bool(self.target_channel), req["dest_mode"]
                     ),
                 )
             except Exception as exc:
@@ -121,6 +153,49 @@ class BotHandlers:
             if text.startswith("/"):
                 return
             session_key = (message.chat.id, getattr(message.from_user, "id", message.chat.id))
+            if session_key in self.channel_sessions:
+                channel_id = None
+                forwarded = getattr(message, "forward_from_chat", None)
+                if forwarded is None:
+                    origin = getattr(message, "forward_origin", None)
+                    forwarded = getattr(origin, "chat", None) if origin else None
+                if forwarded is not None:
+                    channel_id = getattr(forwarded, "id", None)
+                if channel_id is None:
+                    candidate = text.strip()
+                    if candidate.startswith("@") or candidate.lstrip("-").isdigit():
+                        channel_id = candidate
+                if channel_id is None:
+                    await message.reply_text(
+                        "Send a private channel ID (usually starts with -100), "
+                        "or forward a post from that channel. Send /cancel to stop."
+                    )
+                    return
+                try:
+                    chat = await self.client.get_chat(channel_id)
+                    if str(getattr(chat, "type", "")).lower().split(".")[-1] != "channel":
+                        raise ValueError("That ID is not a Telegram channel.")
+                    me = await self.client.get_me()
+                    member = await self.client.get_chat_member(chat.id, me.id)
+                    status = str(getattr(member, "status", "")).lower().split(".")[-1]
+                    if status not in ("administrator", "creator", "owner"):
+                        raise ValueError("The bot is not an administrator in that channel.")
+                    can_post = getattr(member, "can_post_messages", None)
+                    if can_post is False:
+                        raise ValueError("The bot does not have permission to post messages.")
+                    self.target_channel = str(chat.id)
+                    self.target_channel_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.target_channel_path.write_text(self.target_channel, encoding="utf-8")
+                    self.channel_sessions.pop(session_key, None)
+                    title = getattr(chat, "title", "Private channel")
+                    await message.reply_text(
+                        f"✅ Private channel saved: **{title}**\\nID: `{self.target_channel}`\\n"
+                        "New downloads can now use **Chat + Channel**."
+                    )
+                except Exception as exc:
+                    await message.reply_text(f"❌ Could not add channel: {exc}\\nTry again or send /cancel.")
+                return
+
             session = self.autofetch_sessions.get(session_key)
             if not session:
                 return
@@ -201,7 +276,7 @@ class BotHandlers:
                     req = {
                         "chat_id": message.chat.id,
                         "reply_id": status.id,
-                        "dest_mode": "both" if self.settings.target_channel else "chat",
+                        "dest_mode": "both" if self.target_channel else "chat",
                     }
                     batch_id = uuid.uuid4().hex[:8]
                     queued = 0
@@ -236,7 +311,9 @@ class BotHandlers:
             parts = (message.text or "").split(maxsplit=1)
             session_key = (message.chat.id, getattr(message.from_user, "id", message.chat.id))
             if len(parts) < 2:
-                if self.autofetch_sessions.pop(session_key, None):
+                if self.channel_sessions.pop(session_key, None):
+                    await message.reply_text("🛑 Channel setup cancelled.")
+                elif self.autofetch_sessions.pop(session_key, None):
                     await message.reply_text("🛑 AutoFetch setup cancelled.")
                 else:
                     await message.reply_text("Usage: /cancel JOB_ID")
@@ -259,6 +336,32 @@ class BotHandlers:
                 await query.answer()
                 return
 
+            if action in ("chadd", "chremove"):
+                if not self._is_owner(getattr(query, "from_user", None)):
+                    await query.answer("Owner only", show_alert=True)
+                    return
+                session_key = (query.message.chat.id, query.from_user.id)
+                if action == "chadd":
+                    self.channel_sessions[session_key] = True
+                    await query.message.reply_text(
+                        "Send the private channel ID (usually -100...) or forward a post from that channel.\\n"
+                        "Make sure this bot is an administrator and can post messages.\\n"
+                        "Send /cancel to stop."
+                    )
+                    await query.answer("Waiting for channel")
+                else:
+                    self.target_channel = ""
+                    try:
+                        self.target_channel_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    await query.message.edit_text(
+                        "🗑 Upload channel removed. New jobs will upload to the chat only.",
+                        reply_markup=self._channel_keyboard(),
+                    )
+                    await query.answer("Channel removed")
+                return
+
             if action in ("qual", "dest") and len(parts) == 3:
                 key, value = parts[1], parts[2]
                 req = self.pending.get(key)
@@ -266,7 +369,7 @@ class BotHandlers:
                     await query.answer("Request expired", show_alert=True)
                     return
                 if action == "dest":
-                    if not self.settings.target_channel:
+                    if not self.target_channel:
                         await query.answer("No TARGET_CHANNEL is configured", show_alert=True)
                         return
                     req["dest_mode"] = value
@@ -291,7 +394,7 @@ class BotHandlers:
                     return
                 req["posts_page"] = page
                 await query.message.edit_reply_markup(reply_markup=fetch_keyboard(
-                    key, req["result"], page, "posts", bool(self.settings.target_channel), req["dest_mode"]
+                    key, req["result"], page, "posts", bool(self.target_channel), req["dest_mode"]
                 ))
                 await query.answer()
 
@@ -303,7 +406,7 @@ class BotHandlers:
                     return
                 await query.message.edit_reply_markup(reply_markup=fetch_keyboard(
                     key, req["result"], req.get("posts_page", 0), mode,
-                    bool(self.settings.target_channel), req["dest_mode"]
+                    bool(self.target_channel), req["dest_mode"]
                 ))
                 await query.answer()
 
@@ -328,7 +431,7 @@ class BotHandlers:
                     f"Batch quality set to {quality}.",
                     reply_markup=fetch_keyboard(
                         key, req["result"], req.get("posts_page", 0), "posts",
-                        bool(self.settings.target_channel), req["dest_mode"]
+                        bool(self.target_channel), req["dest_mode"]
                     ),
                 )
 
@@ -343,7 +446,7 @@ class BotHandlers:
                 await query.message.edit_reply_markup(reply_markup=fetch_keyboard(
                     key, req["result"], req.get("posts_page", 0),
                     "posts" if req["result"]["discoveredPosts"] else "links",
-                    bool(self.settings.target_channel), mode
+                    bool(self.target_channel), mode
                 ))
 
             elif action == "fpostdl" and len(parts) == 3:
@@ -376,7 +479,7 @@ class BotHandlers:
                     f"🔗 **Streams for {post['title']}**",
                     reply_markup=fetch_keyboard(
                         key, req["result"], 0, "links",
-                        bool(self.settings.target_channel), req["dest_mode"]
+                        bool(self.target_channel), req["dest_mode"]
                     ),
                 )
 
