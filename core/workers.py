@@ -7,7 +7,7 @@ from pathlib import Path
 from core.models import DownloadJob, JobStatus
 from core.queue import InMemoryJobQueue
 from downloader.engine import DownloadEngine
-from media.processor import prepare, format_bytes, format_duration
+from media.processor import prepare
 from uploader.wzgram import WzgramUploader
 from extractor.fetch import resolve_post_stream
 
@@ -112,12 +112,8 @@ class WorkerManager:
                 job.status = JobStatus.UPLOADING
                 job.upload_progress = 0.0
                 thumb = Path(job.metadata["thumbnail"]) if job.metadata.get("thumbnail") else None
-                size = format_bytes(job.metadata.get("size", 0))
-                duration = format_duration(job.metadata.get("duration", 0))
-                caption = (
-                    f"🎬 {job.title or job.metadata.get('title') or job.file_path.stem}\n"
-                    f"📺 {job.metadata.get('height', 0)}p · ⏱ {duration} · 📦 {size}"
-                )
+                title = job.title or job.metadata.get("title") or job.file_path.stem
+                caption = f"🎬 {title}"
                 await self.notify(job, "⬆️ Upload started")
 
                 async def progress(current, total):
