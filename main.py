@@ -10,6 +10,7 @@ from core.workers import WorkerManager
 from downloader.engine import DownloadEngine
 from uploader.wzgram import WzgramUploader, apply_wzgram_tuning
 from bot.handlers import BotHandlers
+from bot.notifications import render_job_notification, render_batch_notification
 
 
 async def main():
@@ -38,61 +39,55 @@ async def main():
 
     queue = InMemoryJobQueue(settings.max_pending_uploads)
     downloader = DownloadEngine(settings)
-    last_notification_edit = {}
-    batch_states = {}
+    last_notification_edit: dict[str, float] = {}
+    notification_locks: dict[str, asyncio.Lock] = {}
 
-    async def notify(job, text):
+    async def notify(job, detail=""):
         chat_id = job.metadata.get("telegram_chat_id") or job.destination
-        message_id = job.metadata.get("telegram_message_id")
         if not chat_id:
             return
 
-        now = time.monotonic()
         is_batch = bool(job.batch_id)
-        key = f"batch:{job.batch_id}" if is_batch else job.id
-        terminal = str(job.status) in ("completed", "failed", "cancelled")
-        if not terminal and now - last_notification_edit.get(key, 0) < settings.progress_update_interval:
-            return
-        last_notification_edit[key] = now
+        key = f"batch:{job.batch_id}" if is_batch else f"job:{job.id}"
+        lock = notification_locks.setdefault(key, asyncio.Lock())
 
-        if is_batch:
-            state = batch_states.setdefault(job.batch_id, {})
-            state[job.id] = {
-                "title": job.title or job.id,
-                "status": str(job.status),
-                "progress": float(job.progress or 0),
-                "detail": text,
-            }
-            all_jobs = [item for item in queue.snapshot() if item.batch_id == job.batch_id]
-            done = sum(1 for item in all_jobs if str(item.status) in ("completed", "failed", "cancelled"))
-            lines = [
-                f"📊 **VeloFetch Batch {job.batch_id}**",
-                f"Jobs: {done}/{len(all_jobs)} finished",
-                "",
-            ]
-            for item in all_jobs:
-                current = state.get(item.id, {
-                    "title": item.title or item.id,
-                    "status": str(item.status),
-                    "progress": float(item.progress or 0),
-                    "detail": "",
-                })
-                lines.append(
-                    f"• **{current['title'][:45]}** — {current['status']} · {current['progress']:.0f}%"
+        async with lock:
+            now = time.monotonic()
+            jobs = (
+                [item for item in queue.snapshot() if item.batch_id == job.batch_id]
+                if is_batch else [job]
+            )
+            terminal = all(
+                str(item.status) in ("completed", "failed", "cancelled")
+                for item in jobs
+            )
+            if not terminal and now - last_notification_edit.get(key, 0) < settings.progress_update_interval:
+                return
+            last_notification_edit[key] = now
+
+            content = (
+                render_batch_notification(job.batch_id, jobs, detail)
+                if is_batch else render_job_notification(job, detail)
+            )
+
+            message_id = job.metadata.get("telegram_message_id")
+            try:
+                if message_id:
+                    await client.edit_message_text(chat_id, int(message_id), content)
+                else:
+                    sent = await client.send_message(chat_id, content)
+                    message_id = sent.id
+                    if is_batch:
+                        for item in jobs:
+                            item.metadata["telegram_message_id"] = message_id
+                    else:
+                        job.metadata["telegram_message_id"] = message_id
+            except Exception:
+                # Never send a replacement message after an edit failure:
+                # that would create duplicate notifications.
+                logging.getLogger("velofetch").debug(
+                    "Telegram notification update failed", exc_info=True
                 )
-            lines.extend(["", text])
-            content = "\n".join(lines)
-        else:
-            content = f"**{job.id}** · {job.status}\n{text}"
-
-        try:
-            if message_id:
-                await client.edit_message_text(chat_id, int(message_id), content)
-            else:
-                sent = await client.send_message(chat_id, content)
-                job.metadata["telegram_message_id"] = sent.id
-        except Exception:
-            logging.getLogger("velofetch").debug("Telegram notification update failed", exc_info=True)
 
     uploader = WzgramUploader(client, settings.upload_workers)
     workers = WorkerManager(settings, queue, downloader, uploader, notify)
