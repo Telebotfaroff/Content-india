@@ -21,6 +21,7 @@ class BotHandlers:
         self.workers = workers
         self.notify = notify
         self.pending = {}
+        self.autofetch_sessions = {}
 
     def _metadata(self, req: dict) -> dict:
         return {
@@ -48,6 +49,7 @@ class BotHandlers:
                 "⚡ **VeloFetch**\n\n"
                 "/ytdlp <url> — direct video download with quality selection\n"
                 "/fetch <url> — scan a page for posts and direct streams\n"
+                "/autofetch — learn pagination and queue posts from multiple pages\n"
                 "/queue — show in-memory jobs\n"
                 "/cancel <job_id> — cancel a job\n\n"
                 "You can also reply to a message containing a URL with /ytdlp or /fetch."
@@ -103,6 +105,124 @@ class BotHandlers:
                 )
             except Exception as exc:
                 await status.edit_text(f"❌ Extraction failed: {exc}\nTry /ytdlp with the post URL.")
+
+        @self.client.on_message(filters.command(["autofetch"]))
+        async def autofetch(_, message):
+            session_key = (message.chat.id, getattr(message.from_user, "id", message.chat.id))
+            self.autofetch_sessions[session_key] = {"step": "base"}
+            await message.reply_text(
+                "🌐 **AutoFetch · Step 1/3**\nSend the base listing URL (page 1).\n"
+                "Send /cancel to stop."
+            )
+
+        @self.client.on_message(filters.text)
+        async def autofetch_input(_, message):
+            text = (message.text or "").strip()
+            if text.startswith("/"):
+                return
+            session_key = (message.chat.id, getattr(message.from_user, "id", message.chat.id))
+            session = self.autofetch_sessions.get(session_key)
+            if not session:
+                return
+
+            if session["step"] == "base":
+                match = URL_RE.search(text)
+                if not match:
+                    await message.reply_text("Please send a valid base URL, or /cancel.")
+                    return
+                session["base_url"] = match.group(0).rstrip(".,)")
+                session["step"] = "second"
+                await message.reply_text(
+                    "🔎 **AutoFetch · Step 2/3**\n"
+                    "Now send the URL for page 2, so I can detect the pagination pattern."
+                )
+                return
+
+            if session["step"] == "second":
+                match = URL_RE.search(text)
+                if not match:
+                    await message.reply_text("Please send a valid page-2 URL.")
+                    return
+                second_url = match.group(0).rstrip(".,)")
+                try:
+                    from extractor.pagination import build_page_url
+                    build_page_url(session["base_url"], second_url, 3)
+                except ValueError as exc:
+                    await message.reply_text(f"❌ Could not detect pagination: {exc}\nSend the page-2 URL again.")
+                    return
+                session["second_url"] = second_url
+                session["step"] = "count"
+                await message.reply_text(
+                    "📚 **AutoFetch · Step 3/3**\n"
+                    "Send the total number of pages to scan (for example: 20). "
+                    "Page 1 and page 2 are included."
+                )
+                return
+
+            if session["step"] == "count":
+                if not text.isdigit() or int(text) < 2 or int(text) > 200:
+                    await message.reply_text("Send a number from 2 to 200. This is the total page count.")
+                    return
+                page_count = int(text)
+                self.autofetch_sessions.pop(session_key, None)
+                status = await message.reply_text(
+                    f"🔍 AutoFetch started · scanning {page_count} pages…"
+                )
+                try:
+                    from extractor.pagination import build_page_url
+                    import asyncio
+
+                    base_url = session["base_url"]
+                    second_url = session["second_url"]
+                    found = {}
+                    errors = []
+                    for page_no in range(1, page_count + 1):
+                        page_url = build_page_url(base_url, second_url, page_no)
+                        try:
+                            result = await fetch_direct_links(page_url)
+                            for post in result.to_dict().get("discoveredPosts", []):
+                                post_url = post.get("postUrl", "").rstrip("/").lower()
+                                if post_url:
+                                    found.setdefault(post_url, post)
+                        except Exception as exc:
+                            errors.append(f"Page {page_no}: {str(exc)[:120]}")
+                        if page_no == page_count or page_no % 2 == 0:
+                            await status.edit_text(
+                                f"🔍 AutoFetch scanning: {page_no}/{page_count} pages\n"
+                                f"🎞 Unique posts found: {len(found)}"
+                            )
+
+                    if not found:
+                        detail = "\n".join(errors[:5])
+                        await status.edit_text(
+                            "❌ AutoFetch found no posts across the selected pages."
+                            + (f"\n{detail}" if detail else "")
+                        )
+                        return
+
+                    req = {
+                        "chat_id": message.chat.id,
+                        "reply_id": status.id,
+                        "dest_mode": "both" if self.settings.target_channel else "chat",
+                    }
+                    batch_id = uuid.uuid4().hex[:8]
+                    queued = 0
+                    for post in found.values():
+                        await self._queue_post(req, post, "1080p", batch_id)
+                        queued += 1
+                    summary = (
+                        f"🚀 **AutoFetch queued**\n"
+                        f"📄 Pages scanned: {page_count}\n"
+                        f"🎞 Unique posts queued: {queued}\n"
+                        f"⚡ Batch: {batch_id}\n"
+                        f"🎚 Quality: 1080p"
+                    )
+                    if errors:
+                        summary += f"\n⚠️ Pages with errors: {len(errors)}"
+                    await status.edit_text(summary)
+                except Exception as exc:
+                    await status.edit_text(f"❌ AutoFetch failed: {exc}")
+                return
 
         @self.client.on_message(filters.command(["queue"]))
         async def queue_cmd(_, message):
