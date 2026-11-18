@@ -55,6 +55,7 @@ class WorkerManager:
                 await self.notify(job, "⬇️ Download started")
 
                 async def progress(percent, speed, eta):
+                    job.download_progress = percent
                     job.progress = percent
                     await self.notify(job, f"⬇️ {percent:.1f}% · {speed} · ETA {eta}")
 
@@ -109,6 +110,7 @@ class WorkerManager:
                     continue
 
                 job.status = JobStatus.UPLOADING
+                job.upload_progress = 0.0
                 thumb = Path(job.metadata["thumbnail"]) if job.metadata.get("thumbnail") else None
                 size = format_bytes(job.metadata.get("size", 0))
                 duration = format_duration(job.metadata.get("duration", 0))
@@ -120,7 +122,8 @@ class WorkerManager:
 
                 async def progress(current, total):
                     if total:
-                        job.progress = current / total * 100
+                        job.upload_progress = current / total * 100
+                        job.progress = job.upload_progress
                         await self.notify(
                             job,
                             f"⬆️ {job.progress:.1f}% · "
