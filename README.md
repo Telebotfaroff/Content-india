@@ -18,6 +18,7 @@ Python-only Telegram video downloader and uploader.
 - `/fetch <url>` — scan a page for discovered posts and direct streams
 - `/autofetch` — learn a site's pagination from page 1 and page 2 URLs, scan a chosen number of pages, deduplicate posts and queue them as one batch (default quality: 1080p)
 - `/queue` — show current in-memory jobs
+- `/channel` — owner-only private upload-channel manager; add/change/remove the destination from Telegram
 - `/cancel <job_id>` — cancel a job
 
 Reply to a message containing a URL with `/ytdlp` or `/fetch` to use its URL. `/autofetch` is a separate guided flow: send the base URL, the page-2 URL, then the total page count (2–200). Use `/cancel` during setup to stop it.
@@ -41,7 +42,7 @@ Batch downloads run one video at a time by default. As soon as a video finishes 
 
 WZGram authenticates using the bot token together with API ID and API hash. Videos are sent using MTProto `send_video`; when both chat and channel delivery are selected, the bot tries a server-side message copy for the secondary destination.
 
-Set `TARGET_CHANNEL` to enable the Chat + Channel / Chat Only destination choice. The bot must have permission to post in the target channel.
+Set `ADMIN_ID` to your numeric Telegram user ID to enable owner-only `/channel` management. Use `/channel` in Telegram, tap **Add / Change private channel**, then send the private channel ID (usually `-100...`) or forward a post from it. VeloFetch checks that the bot is an administrator and can post before saving the destination. The selected channel ID is stored in `sessions/target_channel.txt` (no database) and overrides optional `TARGET_CHANNEL`. Use `/channel` to remove it. New jobs then offer Chat + Channel / Chat Only choices. The bot must be an administrator with permission to post in the target channel.
 
 ## Telegram notifications
 
@@ -49,7 +50,7 @@ Each download uses one editable live status message from start to finish—downl
 
 ## Google Colab
 
-Open [VeloFetch_Colab.ipynb](VeloFetch_Colab.ipynb) in Google Colab and run the cells from top to bottom. The notebook clones the repository, installs FFmpeg/aria2 and Python requirements, prompts for `BOT_TOKEN`, `API_ID`, and `API_HASH`, then starts the bot with live logs. `TARGET_CHANNEL` is optional.
+Open [VeloFetch_Colab.ipynb](VeloFetch_Colab.ipynb) in Google Colab and run the cells from top to bottom. The notebook clones the repository, installs FFmpeg/aria2 and Python requirements, prompts for `BOT_TOKEN`, `API_ID`, `API_HASH`, and `ADMIN_ID`, then starts the bot with live logs. `TARGET_CHANNEL` is optional; you can also add a private channel later with `/channel`.
 
 The credentials are entered at runtime rather than saved in the notebook. Keep the final run cell active while the bot is running. Colab runtimes are temporary, so the in-memory queue, WZGram session files and local downloads do not survive a runtime reset.
 
