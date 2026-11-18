@@ -170,8 +170,6 @@ class BotHandlers:
                 )
                 try:
                     from extractor.pagination import build_page_url
-                    import asyncio
-
                     base_url = session["base_url"]
                     second_url = session["second_url"]
                     found = {}
@@ -236,8 +234,12 @@ class BotHandlers:
         @self.client.on_message(filters.command(["cancel"]))
         async def cancel(_, message):
             parts = (message.text or "").split(maxsplit=1)
+            session_key = (message.chat.id, getattr(message.from_user, "id", message.chat.id))
             if len(parts) < 2:
-                await message.reply_text("Usage: /cancel JOB_ID")
+                if self.autofetch_sessions.pop(session_key, None):
+                    await message.reply_text("🛑 AutoFetch setup cancelled.")
+                else:
+                    await message.reply_text("Usage: /cancel JOB_ID")
                 return
             job = await self.queue.get(parts[1].strip())
             if not job:
