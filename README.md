@@ -32,6 +32,10 @@ Reply to a message containing a URL with `/ytdlp` or `/fetch` to use its URL.
 - Batch quality selection supports 1080p, 720p and 480p.
 - Hybrid pages can switch between post results and direct streams.
 
+## Download/upload pipeline
+
+Batch downloads run one video at a time by default. As soon as a video finishes downloading and processing, it is handed to the upload worker; the next video downloads while the previous one uploads. The pipeline is bounded to the active upload plus one next file, so a large batch does not fill Colab's local disk before uploads begin. Successful files and thumbnails are removed after upload. Increase `DOWNLOAD_WORKERS` only if you intentionally want parallel downloads and have enough storage.
+
 ## Upload behaviour
 
 WZGram authenticates using the bot token together with API ID and API hash. Videos are sent using MTProto `send_video`; when both chat and channel delivery are selected, the bot tries a server-side message copy for the secondary destination.
