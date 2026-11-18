@@ -21,11 +21,12 @@ def fetch_keyboard(key: str, info: dict, page: int=0, mode: str="posts", has_cha
     if mode=="posts" and posts:
         start=page*5
         for idx,p in enumerate(posts[start:start+5],start):
-            rows.append([InlineKeyboardButton(f"🎬 {p.get('title','Post')[:48]}",callback_data=f"fpost|{key}|{idx}")])
             rows.append([InlineKeyboardButton("⬇️ Download",callback_data=f"fpostdl|{key}|{idx}"),InlineKeyboardButton("🔍 Streams",callback_data=f"finspect|{key}|{idx}")])
         rows.append([InlineKeyboardButton("Top 3",callback_data=f"fbatch|{key}|3"),InlineKeyboardButton("Top 5",callback_data=f"fbatch|{key}|5"),InlineKeyboardButton("Top 10",callback_data=f"fbatch|{key}|10")])
         rows.append([InlineKeyboardButton("Download All",callback_data=f"fbatch|{key}|all")])
         rows.append([InlineKeyboardButton(f"Quality: {info.get('batchQuality','1080p')}",callback_data=f"fqualmenu|{key}")])
+        if links:
+            rows.append([InlineKeyboardButton(f"🎬 View Direct Streams ({len(links)})",callback_data=f"fmode|{key}|links")])
         pages=max(1,(len(posts)+4)//5)
         nav=[]
         if page>0: nav.append(InlineKeyboardButton("◀️",callback_data=f"fpage|{key}|{page-1}"))
