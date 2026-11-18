@@ -8,7 +8,7 @@ from config import load_settings
 from core.queue import InMemoryJobQueue
 from core.workers import WorkerManager
 from downloader.engine import DownloadEngine
-from uploader.wzgram import WzgramUploader
+from uploader.wzgram import WzgramUploader, apply_wzgram_tuning
 from bot.handlers import BotHandlers
 
 
@@ -20,6 +20,7 @@ async def main():
     )
 
     from wzgram import Client
+    apply_wzgram_tuning()
 
     client = Client(
         name=settings.session_name,
@@ -30,6 +31,7 @@ async def main():
         in_memory=False,
         no_updates=False,
         skip_updates=True,
+        sleep_threshold=60,
         workers=4,
         max_concurrent_transmissions=1,
     )
