@@ -42,7 +42,7 @@ Batch downloads run one video at a time by default. As soon as a video finishes 
 
 WZGram authenticates using the bot token together with API ID and API hash. Videos are sent using MTProto `send_video`; when both chat and channel delivery are selected, the bot tries a server-side message copy for the secondary destination.
 
-Set `ADMIN_ID` to your numeric Telegram user ID to enable owner-only `/channel` management. Use `/channel` in Telegram, tap **Add / Change private channel**, then send the private channel ID (usually `-100...`) or forward a post from it. VeloFetch checks that the bot is an administrator and can post before saving the destination. The selected channel ID is stored in `sessions/target_channel.txt` (no database) and overrides optional `TARGET_CHANNEL`. Use `/channel` to remove it. New jobs then offer Chat + Channel / Chat Only choices. The bot must be an administrator with permission to post in the target channel.
+Set `ADMIN_ID` to your numeric Telegram user ID to enable owner-only `/channel` management. Use `/channel` in Telegram, tap **Add / Change private channel**, then send the private channel ID (usually `-100...`) or forward a post from it. VeloFetch checks that the bot is an administrator and can post before saving the destination. The selected channel ID is stored in `sessions/target_channel.txt` (no database) and overrides optional `TARGET_CHANNEL`. Use `/channel` to remove it. New jobs offer Chat Only, Channel Only, and Chat + Channel choices. Channel Only uploads directly to the configured channel without sending a copy to the command chat. The bot must be an administrator with permission to post in the target channel.
 
 ## Telegram notifications
 
