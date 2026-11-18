@@ -33,7 +33,7 @@ async def main():
         skip_updates=True,
         sleep_threshold=60,
         workers=4,
-        max_concurrent_transmissions=1,
+        max_concurrent_transmissions=settings.upload_workers,
     )
 
     queue = InMemoryJobQueue(settings.max_pending_uploads)
