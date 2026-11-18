@@ -363,8 +363,11 @@ class BotHandlers:
                     await query.answer("Request expired", show_alert=True)
                     return
                 if action == "dest":
-                    if not self.target_channel:
-                        await query.answer("No TARGET_CHANNEL is configured", show_alert=True)
+                    if value not in ("chat", "channel", "both"):
+                        await query.answer("Unknown destination", show_alert=True)
+                        return
+                    if value in ("channel", "both") and not self.target_channel:
+                        await query.answer("Add a channel first with /channel", show_alert=True)
                         return
                     req["dest_mode"] = value
                     await query.answer("Destination updated")
@@ -434,6 +437,12 @@ class BotHandlers:
                 req = self.pending.get(key)
                 if not req:
                     await query.answer("Session expired", show_alert=True)
+                    return
+                if mode not in ("chat", "channel", "both"):
+                    await query.answer("Unknown destination", show_alert=True)
+                    return
+                if mode in ("channel", "both") and not self.target_channel:
+                    await query.answer("Add a channel first with /channel", show_alert=True)
                     return
                 req["dest_mode"] = mode
                 await query.answer("Destination updated")
