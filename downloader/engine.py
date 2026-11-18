@@ -41,15 +41,21 @@ class DownloadEngine:
         if is_direct_video_url(url) and shutil.which("aria2c"):
             final=self.settings.download_dir/f"job_{job_id}{ext}"
             args=["aria2c",f"--max-connection-per-server={self.settings.aria2c_connections}",f"--split={self.settings.aria2c_split}","--min-split-size=1M","--file-allocation=none","--continue=true","--allow-overwrite=true","--auto-file-renaming=false","--check-certificate=false",f"--user-agent={UA}","--summary-interval=1","--console-log-level=warn","--dir",str(self.settings.download_dir),"--out",final.name,url]
-            proc=await asyncio.create_subprocess_exec(*args,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
-            self.processes[job_id]=proc
-            async for raw in proc.stdout:
-                line=raw.decode(errors="replace")
-                m=re.search(r"\[#[0-9a-f]+\s+([^\s/]+)/([^\s(]+)\((\d+)%\).*?DL:([^\s\]]+)(?:\s+ETA:([^\]]+))?",line,re.I)
-                if m and progress: await progress(float(m.group(3)),m.group(4),m.group(5) or "")
-            code=await proc.wait(); self.processes.pop(job_id,None)
-            if code==0 and final.exists() and final.stat().st_size: return final
-            raise RuntimeError(f"aria2c failed (exit {code})")
+            try:
+                proc=await asyncio.create_subprocess_exec(*args,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
+                self.processes[job_id]=proc
+                async for raw in proc.stdout:
+                    line=raw.decode(errors="replace")
+                    m=re.search(r"\\[#[0-9a-f]+\\s+([^\\s/]+)/([^\\s(]+)\\((\\d+)%\\).*?DL:([^\\s\\]]+)(?:\\s+ETA:([^\\]]+))?",line,re.I)
+                    if m and progress: await progress(float(m.group(3)),m.group(4),m.group(5) or "")
+                code=await proc.wait()
+                self.processes.pop(job_id,None)
+                if code==0 and final.exists() and final.stat().st_size:
+                    return final
+                raise RuntimeError(f"aria2c exited with code {code}")
+            except Exception:
+                self.processes.pop(job_id,None)
+                # Match the original engine: a failed direct aria2c attempt falls back to yt-dlp.
         args=["yt-dlp","--no-warnings","--no-check-certificates","--socket-timeout","20","--retries","3","--fragment-retries","3","--concurrent-fragments",str(self.settings.aria2c_connections)]
         if shutil.which("aria2c"):
             args.extend(["--downloader-args",f"aria2c:-x{self.settings.aria2c_connections} -s{self.settings.aria2c_split} -k1M"])
