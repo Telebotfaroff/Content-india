@@ -20,6 +20,7 @@ def _int(name: str, default: int, minimum: int = 1) -> int:
 class Settings:
     bot_token: str
     target_channel: str
+    admin_id: int
     api_id: int
     api_hash: str
     session_name: str
@@ -48,6 +49,7 @@ def load_settings() -> Settings:
     settings = Settings(
         bot_token=token,
         target_channel=os.getenv("TARGET_CHANNEL", "").strip(),
+        admin_id=int(os.getenv("ADMIN_ID", "0") or "0"),
         api_id=int(api_id),
         api_hash=api_hash,
         session_name=os.getenv("SESSION_NAME", "velofetch"),
