@@ -48,7 +48,7 @@ class WorkerManager:
                 job.file_path=await self.downloader.download(job.id,download_url,job.quality,progress)
                 if job.status==JobStatus.CANCELLED: continue
                 job.status=JobStatus.PROCESSING
-                metadata,thumb=await prepare(job.file_path,self.settings)
+                metadata,thumb=await prepare(job.file_path,self.settings,job.id,job.metadata.get("thumbnail_url") or job.metadata.get("source_thumbnail_url", ""))
                 job.metadata.update(metadata); job.metadata["thumbnail"]=str(thumb) if thumb else ""
                 job.status=JobStatus.READY
                 await self.queue.upload_queue.put(job)
