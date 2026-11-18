@@ -4,35 +4,54 @@ Python-only Telegram video downloader and uploader.
 
 ## Architecture
 
-- **Telegram interface:** WZGram
-- **MTProto authentication:** `API_ID`, `API_HASH`, `BOT_TOKEN`
+- **Telegram control and MTProto uploads:** WZGram
+- **Authentication:** `BOT_TOKEN`, `API_ID`, `API_HASH`
 - **Downloader:** yt-dlp + aria2c
-- **Media inspection and thumbnails:** FFprobe + FFmpeg
-- **Queue:** asyncio, in-memory only
-- **Persistence:** none — no SQLite, PostgreSQL, Redis, or JSON job database
+- **Media processing:** FFmpeg + FFprobe
+- **Queue:** Python asyncio, in-memory only
+- **Persistence:** none — no SQLite, PostgreSQL, Redis or JSON job store
 
 ## Commands
 
-- `/start` — open the control panel
-- `/help` — command help
+- `/start`, `/help` — help
 - `/ytdlp <url>` — direct URL download with quality selection
-- `/fetch <url>` — scan a page, inspect discovered posts/direct streams, and select downloads
+- `/fetch <url>` — scan a page for discovered posts and direct streams
 - `/queue` — show current in-memory jobs
 - `/cancel <job_id>` — cancel a job
 
-## Important runtime behaviour
+Reply to a message containing a URL with `/ytdlp` or `/fetch` to use its URL.
 
-The queue and pending `/fetch` selections live in memory. Restarting the process clears pending jobs and extraction sessions. Downloaded files already written to disk remain on disk.
+## Fetch behaviour being preserved
 
-## Current development status
+- yt-dlp JSON extraction and HTML scraping run concurrently.
+- HTML extraction checks OG/video metadata, base64 player parameters, anchors, video/source tags and script/JSON video URLs.
+- Discovered posts are deduplicated; HTML post discovery is capped at 45.
+- yt-dlp playlist extraction is capped at 35 entries.
+- Results show five posts per page.
+- Individual post download, individual post stream inspection, direct-stream selection and Top 3/5/10/All batch actions are supported.
+- Batch quality selection supports 1080p, 720p and 480p.
+- Hybrid pages can switch between post results and direct streams.
 
-The initial Python scaffold and volatile queue are committed. The original `/ytdlp` and `/fetch` handlers, extractor, downloader pipeline, media processor and verified WZGram client adapter are still being ported. `main.py` is currently a bootstrap placeholder and is not yet a running bot.
+## Upload behaviour
 
-## Setup prerequisites
+WZGram authenticates using the bot token together with API ID and API hash. Videos are sent using MTProto `send_video`; when both chat and channel delivery are selected, the bot tries a server-side message copy for the secondary destination.
 
-1. Python 3.11 or newer.
-2. System packages: `ffmpeg` and `aria2`.
-3. Python dependencies: `pip install -r requirements.txt`.
-4. Copy `.env.example` to `.env` and configure credentials.
+Set `TARGET_CHANNEL` to enable the Chat + Channel / Chat Only destination choice. The bot must have permission to post in the target channel.
 
-The bot will become runnable after the command handlers and WZGram adapter are connected. Never commit real Telegram credentials or session files.
+## Setup
+
+1. Install Python 3.11 or newer.
+2. Install system packages `ffmpeg` and `aria2`.
+3. Install dependencies: `pip install -r requirements.txt`.
+4. Copy `.env.example` to `.env` and fill in Telegram credentials.
+5. Run `python main.py`.
+
+## Volatile queue
+
+Jobs, pending fetch sessions and settings are not persisted. Restarting the process clears in-memory jobs and pending selections. Downloaded files remain in `downloads/`; failed files are retained for manual retry/inspection. Successful uploads are cleaned up.
+
+## Development status
+
+The first working Python pipeline and Telegram handlers are in place. The original Node-to-Python IPC and web dashboard have been removed. Run the tests and verify WZGram against your credentials before using it for real uploads.
+
+Never commit real credentials or WZGram session files.
