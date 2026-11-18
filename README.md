@@ -38,6 +38,12 @@ WZGram authenticates using the bot token together with API ID and API hash. Vide
 
 Set `TARGET_CHANNEL` to enable the Chat + Channel / Chat Only destination choice. The bot must have permission to post in the target channel.
 
+## Google Colab
+
+Open [VeloFetch_Colab.ipynb](VeloFetch_Colab.ipynb) in Google Colab and run the cells from top to bottom. The notebook clones the repository, installs FFmpeg/aria2 and Python requirements, prompts for `BOT_TOKEN`, `API_ID`, and `API_HASH`, then starts the bot with live logs. `TARGET_CHANNEL` is optional.
+
+The credentials are entered at runtime rather than saved in the notebook. Keep the final run cell active while the bot is running. Colab runtimes are temporary, so the in-memory queue, WZGram session files and local downloads do not survive a runtime reset.
+
 ## Setup
 
 1. Install Python 3.11 or newer.
