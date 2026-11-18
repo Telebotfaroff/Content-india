@@ -41,6 +41,7 @@ async def main():
     downloader = DownloadEngine(settings)
     last_notification_edit: dict[str, float] = {}
     notification_locks: dict[str, asyncio.Lock] = {}
+    batch_notification_ids: dict[str, int] = {}
 
     async def notify(job, detail=""):
         chat_id = job.metadata.get("telegram_chat_id") or job.destination
@@ -70,7 +71,10 @@ async def main():
                 if is_batch else render_job_notification(job, detail)
             )
 
-            message_id = job.metadata.get("telegram_message_id")
+            message_id = (
+                batch_notification_ids.get(job.batch_id) if is_batch
+                else job.metadata.get("telegram_message_id")
+            ) or job.metadata.get("telegram_message_id")
             try:
                 if message_id:
                     await client.edit_message_text(chat_id, int(message_id), content)
@@ -78,6 +82,7 @@ async def main():
                     sent = await client.send_message(chat_id, content)
                     message_id = sent.id
                     if is_batch:
+                        batch_notification_ids[job.batch_id] = message_id
                         for item in jobs:
                             item.metadata["telegram_message_id"] = message_id
                     else:
