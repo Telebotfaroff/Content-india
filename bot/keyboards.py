@@ -11,8 +11,9 @@ def quality_keyboard(key: str, has_channel: bool=False):
     ]
     if has_channel:
         rows.append([
-            InlineKeyboardButton("📥📤 Chat + Channel",callback_data=f"dest|{key}|both"),
-            InlineKeyboardButton("📥 Chat Only",callback_data=f"dest|{key}|chat"),
+            InlineKeyboardButton(("✅ " if False else "")+"💬 Chat Only",callback_data=f"dest|{key}|chat"),
+            InlineKeyboardButton("📢 Channel Only",callback_data=f"dest|{key}|channel"),
+            InlineKeyboardButton("💬+📢 Chat + Channel",callback_data=f"dest|{key}|both"),
         ])
     return InlineKeyboardMarkup(rows)
 
@@ -39,8 +40,9 @@ def fetch_keyboard(key: str, info: dict, page: int=0, mode: str="posts", has_cha
         if posts: rows.append([InlineKeyboardButton(f"📂 View {len(posts)} posts",callback_data=f"fmode|{key}|posts")])
     if has_channel:
         rows.append([
-            InlineKeyboardButton(("✅ " if dest_mode=="both" else "")+"📥📤 Chat + Channel",callback_data=f"fdest|{key}|both"),
-            InlineKeyboardButton(("✅ " if dest_mode=="chat" else "")+"📥 Chat Only",callback_data=f"fdest|{key}|chat"),
+            InlineKeyboardButton(("✅ " if dest_mode=="chat" else "")+"💬 Chat Only",callback_data=f"fdest|{key}|chat"),
+            InlineKeyboardButton(("✅ " if dest_mode=="channel" else "")+"📢 Channel Only",callback_data=f"fdest|{key}|channel"),
+            InlineKeyboardButton(("✅ " if dest_mode=="both" else "")+"💬+📢 Chat + Channel",callback_data=f"fdest|{key}|both"),
         ])
     return InlineKeyboardMarkup(rows)
 
