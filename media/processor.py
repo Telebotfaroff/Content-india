@@ -86,3 +86,55 @@ async def prepare(path: Path, settings: Settings, job_id: str="", source_thumbna
     if thumb is None:
         thumb=await create_thumbnail(path,settings)
     return metadata,thumb
+
+
+
+def cleanup_job_files(job_id: str, settings: Settings, file_path: Path | None = None,
+                      thumbnail: Path | None = None) -> tuple[int, int]:
+    """Remove one successfully uploaded job's local media and temporary artifacts.
+
+    Returns (number_of_files_removed, bytes_freed). The caller must invoke this
+    only after all configured upload destinations have completed successfully.
+    """
+    candidates: set[Path] = set()
+    if file_path is not None:
+        candidates.add(Path(file_path))
+    if thumbnail is not None:
+        candidates.add(Path(thumbnail))
+
+    download_prefix = f"job_{job_id}"
+    temp_prefixes = (f"job_{job_id}_", f"{job_id}_")
+    for directory, prefixes in (
+        (settings.download_dir, (download_prefix,)),
+        (settings.temp_dir, temp_prefixes),
+    ):
+        try:
+            for path in directory.iterdir():
+                if path.is_file() and path.name.startswith(prefixes):
+                    candidates.add(path)
+        except OSError:
+            continue
+
+    removed = 0
+    freed = 0
+    protected_dirs = (settings.download_dir.resolve(), settings.temp_dir.resolve())
+    for path in candidates:
+        try:
+            resolved = path.resolve()
+            # Explicit paths must remain inside VeloFetch's managed folders.
+            if not any(resolved == root or root in resolved.parents for root in protected_dirs):
+                continue
+            if not resolved.is_file():
+                continue
+            size = resolved.stat().st_size
+            resolved.unlink()
+            removed += 1
+            freed += size
+        except FileNotFoundError:
+            continue
+        except OSError:
+            log.warning("Could not remove completed job artifact: %s", path, exc_info=True)
+
+    log.info("Storage cleanup for job %s: removed %d files, freed %d bytes",
+             job_id, removed, freed)
+    return removed, freed
