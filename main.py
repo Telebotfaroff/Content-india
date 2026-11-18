@@ -39,20 +39,53 @@ async def main():
     queue = InMemoryJobQueue(settings.max_pending_uploads)
     downloader = DownloadEngine(settings)
     last_notification_edit = {}
+    batch_states = {}
 
     async def notify(job, text):
         chat_id = job.metadata.get("telegram_chat_id") or job.destination
         message_id = job.metadata.get("telegram_message_id")
         if not chat_id:
             return
+
         now = time.monotonic()
-        key = job.id
+        is_batch = bool(job.batch_id)
+        key = f"batch:{job.batch_id}" if is_batch else job.id
         terminal = str(job.status) in ("completed", "failed", "cancelled")
         if not terminal and now - last_notification_edit.get(key, 0) < settings.progress_update_interval:
             return
         last_notification_edit[key] = now
-        try:
+
+        if is_batch:
+            state = batch_states.setdefault(job.batch_id, {})
+            state[job.id] = {
+                "title": job.title or job.id,
+                "status": str(job.status),
+                "progress": float(job.progress or 0),
+                "detail": text,
+            }
+            all_jobs = [item for item in queue.snapshot() if item.batch_id == job.batch_id]
+            done = sum(1 for item in all_jobs if str(item.status) in ("completed", "failed", "cancelled"))
+            lines = [
+                f"📊 **VeloFetch Batch {job.batch_id}**",
+                f"Jobs: {done}/{len(all_jobs)} finished",
+                "",
+            ]
+            for item in all_jobs:
+                current = state.get(item.id, {
+                    "title": item.title or item.id,
+                    "status": str(item.status),
+                    "progress": float(item.progress or 0),
+                    "detail": "",
+                })
+                lines.append(
+                    f"• **{current['title'][:45]}** — {current['status']} · {current['progress']:.0f}%"
+                )
+            lines.extend(["", text])
+            content = "\n".join(lines)
+        else:
             content = f"**{job.id}** · {job.status}\n{text}"
+
+        try:
             if message_id:
                 await client.edit_message_text(chat_id, int(message_id), content)
             else:
