@@ -75,10 +75,10 @@ class BotHandlers:
             if not self._is_owner(getattr(message, "from_user", None)):
                 await message.reply_text("⛔ This command is owner-only.")
                 return
-            current = f"\\nCurrent channel: `{self.target_channel}`" if self.target_channel else "\\nNo upload channel configured."
+            current = f"\nCurrent channel: `{self.target_channel}`" if self.target_channel else "\nNo upload channel configured."
             await message.reply_text(
                 "📡 **Private channel settings**" + current +
-                "\\n\\nAdd the channel ID or forward a post from that channel. "
+                "\n\nAdd the channel ID or forward a post from that channel. "
                 "The bot must be an administrator with permission to post.",
                 reply_markup=self._channel_keyboard(),
             )
@@ -185,11 +185,11 @@ class BotHandlers:
                     self.channel_sessions.pop(session_key, None)
                     title = getattr(chat, "title", "Private channel")
                     await message.reply_text(
-                        f"✅ Private channel saved: **{title}**\\nID: `{self.target_channel}`\\n"
+                        f"✅ Private channel saved: **{title}**\nID: `{self.target_channel}`\n"
                         "New downloads can now use **Chat + Channel**."
                     )
                 except Exception as exc:
-                    await message.reply_text(f"❌ Could not add channel: {exc}\\nTry again or send /cancel.")
+                    await message.reply_text(f"❌ Could not add channel: {exc}\nTry again or send /cancel.")
                 return
 
             session = self.autofetch_sessions.get(session_key)
@@ -340,8 +340,8 @@ class BotHandlers:
                 if action == "chadd":
                     self.channel_sessions[session_key] = True
                     await query.message.reply_text(
-                        "Send the private channel ID (usually -100...) or forward a post from that channel.\\n"
-                        "Make sure this bot is an administrator and can post messages.\\n"
+                        "Send the private channel ID (usually -100...) or forward a post from that channel.\n"
+                        "Make sure this bot is an administrator and can post messages.\n"
                         "Send /cancel to stop."
                     )
                     await query.answer("Waiting for channel")
