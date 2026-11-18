@@ -200,11 +200,15 @@ class BotHandlers:
                     await query.answer("Session expired", show_alert=True)
                     return
                 req["batch_quality"] = quality
+                req["result"]["batchQuality"] = quality
                 await query.answer(f"Batch quality: {quality}")
-                await query.message.edit_reply_markup(reply_markup=fetch_keyboard(
-                    key, req["result"], req.get("posts_page", 0), "posts",
-                    bool(self.settings.target_channel), req["dest_mode"]
-                ))
+                await query.message.edit_text(
+                    f"Batch quality set to {quality}.",
+                    reply_markup=fetch_keyboard(
+                        key, req["result"], req.get("posts_page", 0), "posts",
+                        bool(self.settings.target_channel), req["dest_mode"]
+                    ),
+                )
 
             elif action == "fdest" and len(parts) == 3:
                 key, mode = parts[1], parts[2]
