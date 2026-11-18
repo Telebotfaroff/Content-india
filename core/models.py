@@ -30,6 +30,8 @@ class DownloadJob:
     id: str = field(default_factory=lambda: uuid4().hex[:10])
     status: JobStatus = JobStatus.QUEUED
     progress: float = 0.0
+    download_progress: float = 0.0
+    upload_progress: float = 0.0
     title: str | None = None
     file_path: Path | None = None
     error: str | None = None
