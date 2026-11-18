@@ -16,18 +16,12 @@ def _int(name: str, default: int, minimum: int = 1) -> int:
     return value
 
 
-def _ids(name: str) -> tuple[int, ...]:
-    raw = os.getenv(name, "").strip()
-    return tuple(int(part.strip()) for part in raw.split(",") if part.strip())
-
-
 @dataclass(frozen=True, slots=True)
 class Settings:
     bot_token: str
     target_channel: str
     api_id: int
     api_hash: str
-    owner_ids: tuple[int, ...]
     session_name: str
     session_dir: Path
     download_dir: Path
@@ -56,7 +50,6 @@ def load_settings() -> Settings:
         target_channel=os.getenv("TARGET_CHANNEL", "").strip(),
         api_id=int(api_id),
         api_hash=api_hash,
-        owner_ids=_ids("OWNER_IDS"),
         session_name=os.getenv("SESSION_NAME", "velofetch"),
         session_dir=Path(os.getenv("SESSION_DIR", "sessions")),
         download_dir=Path(os.getenv("DOWNLOAD_DIR", "downloads")),
