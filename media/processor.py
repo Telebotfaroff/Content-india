@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import shutil
 from io import BytesIO
 from pathlib import Path
@@ -10,6 +11,8 @@ import aiohttp
 from PIL import Image
 
 from config import Settings
+
+log = logging.getLogger(__name__)
 
 
 def format_bytes(n: int) -> str:
