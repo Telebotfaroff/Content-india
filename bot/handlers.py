@@ -67,11 +67,11 @@ class BotHandlers:
                 "url": url, "chat_id": message.chat.id, "reply_id": message.id,
                 "dest_mode": "both" if self.settings.target_channel else "chat",
             }
-            self.pending[key] = req
-            await message.reply_text(
+            prompt = await message.reply_text(
                 f"🎬 Select quality for {url}",
                 reply_markup=quality_keyboard(key, bool(self.settings.target_channel)),
             )
+            req["reply_id"] = prompt.id
 
         @self.client.on_message(filters.command(["fetch"]))
         async def fetch(_, message):
